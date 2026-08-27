@@ -1,0 +1,7 @@
+# Host-side row that publishes the browser views. The role persona itself is
+# mounted per agent by the my-master user preset.
+- insert:
+    - id: ui-roleplay-master
+      name: 'dsh-roleplay-master'
+      config:
+        clientOnly: true

@@ -1,0 +1,11 @@
+node_modules/
+*.tgz
+
+# Commit only the runtime and declaration files required by GitHub installs.
+lib/**
+!lib/index.js
+!lib/invariant.js
+!lib/client.js
+!lib/types/
+!lib/types/**/
+!lib/types/**/*.d.ts

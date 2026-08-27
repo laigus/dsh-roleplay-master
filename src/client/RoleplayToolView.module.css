@@ -1,0 +1,26 @@
+.punish {
+  margin: 0.5rem 0;
+  padding: 0.5rem 0.75rem;
+  border-left: 3px solid var(--dsw-danger, #e53e3e);
+  background: var(--dsw-surface-raised);
+  border-radius: 0 0.25rem 0.25rem 0;
+  font-size: 0.875rem;
+  color: var(--dsw-text-secondary);
+  white-space: pre-wrap;
+}
+
+.praise {
+  margin: 0.25rem 0;
+  padding: 0.25rem 0.5rem;
+  border-left: 2px solid var(--dsw-success, #38a169);
+  background: var(--dsw-surface-raised);
+  border-radius: 0 0.25rem 0.25rem 0;
+  font-size: 0.8125rem;
+  color: var(--dsw-text-tertiary);
+  font-style: italic;
+  white-space: pre-wrap;
+}
+
+.running {
+  opacity: 0.6;
+}
