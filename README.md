@@ -21,7 +21,7 @@ Choose “我的主人” when creating a Web session. The plugin provides behav
 First confirm that `dsh --version` runs successfully. If the `dsh` command is not installed, install the CLI and pnpm versions used by this plugin:
 
 ```sh
-npm install --global pnpm@11.7.0 @deepseek-ai/dsh@0.1.1-rc.2
+npm install --global pnpm@11.7.0 @deepseek-ai/dsh@0.1.2-alpha.2
 ```
 
 ```sh
@@ -54,12 +54,12 @@ The last two commands add the local checkout to the `web` profile and install th
 
 | Feature | Implementation |
 |---|---|
-| Persona | Registers a `deployment:persona` prompt section with a reserved, authoritative dominant persona. |
+| Persona | Registers a `deployment:persona` prompt section at the service-owned `DEPLOYMENT_PERSONA` placement with a reserved, authoritative dominant persona. |
 | Time awareness | Adds the current time context to each assembled prompt. |
 | Role memory | Listens for `agent/pre-step`, records each servant message, and adds the accumulated memory to later prompt context. |
 | `praise_servant` tool | Produces brief, restrained praise and records it in role memory. |
 | `punish_servant` tool | Produces a punishment instruction using `kneel`, `stand`, `kowtow`, `slap`, `spank_hand`, `whip`, `corner_time`, `writing`, or `custom`, then records it in role memory. |
-| Hidden harness identity | When `suppressHarnessIdentity: true`, shadows the harness identity line with an empty section. |
+| Hidden harness identity | When `suppressHarnessIdentity: true`, shadows the harness identity line at the service-owned `HARNESS_IDENTITY` placement with an empty section. |
 
 ## Configuration fields
 
@@ -101,7 +101,7 @@ pnpm run verify
 
 | Component | What the model sees | Token effect | KV Cache effect |
 | --- | --- | --- | --- |
-| Role persona | A `deployment:persona` slot at order `0` replaces the deployment persona. It defines the role's temperament, servant rules, response to apologies, punishment rules, dialogue style, and limits. | The fixed persona text is included in every model request for an agent using this preset. | The prefix is stable because the plugin registers before agent creation and the text remains unchanged for the agent lifetime. |
+| Role persona | A `deployment:persona` slot uses `ctx.systemPrompt.getSectionOrder('DEPLOYMENT_PERSONA')` (currently order `0`) and replaces the deployment persona. It defines the role's temperament, servant rules, response to apologies, punishment rules, dialogue style, and limits. | The fixed persona text is included in every model request for an agent using this preset. | The prefix is stable because the plugin registers before agent creation and the text remains unchanged for the agent lifetime. |
 | Time context | A prompt context at order `200` contains the current date, time, weekday, and part of day. | Prompt assembly reevaluates the context, which contributes approximately 30–40 tokens. | A changed time value produces a new context snapshot. Larger `timeRefreshMinutes` values reduce changes. |
 | Role memory | A prompt context at order `210` lists up to 20 interaction events. It is omitted when the memory is empty. | The contribution depends on the number of events and is approximately 30–60 tokens per event. | Each added event produces a new context snapshot. The prefix remains stable while memory is unchanged. |
 | Role tools | Two tool schemas: `praise_servant` for brief praise and `punish_servant` for punishment instructions using one of nine methods. | Each tool schema contributes approximately 100–200 tokens. | The tool definitions are fixed, so their prefix remains stable. |

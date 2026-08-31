@@ -21,7 +21,7 @@
 先确认 `dsh --version` 可以运行。如果系统还没有 `dsh` 命令，安装与本插件版本对应的 CLI 和 pnpm：
 
 ```sh
-npm install --global pnpm@11.7.0 @deepseek-ai/dsh@0.1.1-rc.2
+npm install --global pnpm@11.7.0 @deepseek-ai/dsh@0.1.2-alpha.2
 ```
 
 ```sh
@@ -54,12 +54,12 @@ node scripts/install-preset.mjs
 
 | 功能 | 实现 |
 |---|---|
-| 角色设定 | 注册 `deployment:persona` prompt section，提供高冷、威严的 dom persona。 |
+| 角色设定 | 在服务管理的 `DEPLOYMENT_PERSONA` 位置注册 `deployment:persona` prompt section，提供高冷、威严的 dom persona。 |
 | 时间感知 | 向每次组装的提示词添加当前时间上下文。 |
 | 角色记忆 | 监听 `agent/pre-step`，记录奴隶的每条消息，并通过 prompt context 向后续对话注入累积记忆。 |
 | `praise_servant` 工具 | 生成简短、克制的夸奖，并记入角色记忆。 |
 | `punish_servant` 工具 | 使用 `kneel`、`stand`、`kowtow`、`slap`、`spank_hand`、`whip`、`corner_time`、`writing` 或 `custom` 生成惩罚指令，然后记入角色记忆。 |
-| 隐藏 harness 身份 | `suppressHarnessIdentity: true` 时，使用空 section 覆盖 harness 身份行。 |
+| 隐藏 harness 身份 | `suppressHarnessIdentity: true` 时，在服务管理的 `HARNESS_IDENTITY` 位置使用空 section 覆盖 harness 身份行。 |
 
 ## 配置字段
 
@@ -101,7 +101,7 @@ pnpm run verify
 
 | 组成 | 模型看到的内容 | Token 影响 | KV Cache 影响 |
 | --- | --- | --- | --- |
-| 角色 persona | order 为 `0` 的 `deployment:persona` slot 会替换部署级 persona，其中定义角色的性格、奴隶规则、对认错的回应、惩罚原则、对话风格和底线。 | 每次向使用该 preset 的 agent 发起模型请求时，都会包含固定的 persona 文本。 | 插件在 agent 创建前完成注册，且文本在 agent 生命周期内保持不变，因此前缀稳定。 |
+| 角色 persona | `deployment:persona` slot 通过 `ctx.systemPrompt.getSectionOrder('DEPLOYMENT_PERSONA')` 取得位置（当前 order 为 `0`）并替换部署级 persona，其中定义角色的性格、奴隶规则、对认错的回应、惩罚原则、对话风格和底线。 | 每次向使用该 preset 的 agent 发起模型请求时，都会包含固定的 persona 文本。 | 插件在 agent 创建前完成注册，且文本在 agent 生命周期内保持不变，因此前缀稳定。 |
 | 时间上下文 | order 为 `200` 的 prompt context，包含当前日期、时间、星期和时段。 | Prompt assembly 会重新评估该 context，其贡献约为 30–40 个 token。 | 时间值变化会产生新的 context snapshot；较大的 `timeRefreshMinutes` 值可以减少变化。 |
 | 角色记忆 | order 为 `210` 的 prompt context，列出最多 20 条交互事件；记忆为空时省略该 context。 | 该 context 的 token 数量取决于事件数量，每条约为 30–60 个 token。 | 每添加一条事件都会产生新的 context snapshot；记忆不变时，前缀保持稳定。 |
 | 角色工具 | 两个工具 schema：`praise_servant` 用于简短夸奖，`punish_servant` 用于生成九种方式之一的惩罚指令。 | 每个工具 schema 贡献约为 100–200 个 token。 | 工具定义固定，因此前缀保持稳定。 |

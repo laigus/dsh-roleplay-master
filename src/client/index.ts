@@ -3,8 +3,10 @@
  * for punish_servant and praise_servant into the keyed tool.call.toolview slot.
  */
 
-import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
+import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-client-ui-slots'
+// Type-only: pulls the SlotRegistry service merge (ctx.slots).
+import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import { PunishServantView, PraiseServantView } from './RoleplayToolView.tsx'
 
 export const inject = ['slots']

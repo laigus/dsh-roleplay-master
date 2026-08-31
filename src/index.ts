@@ -8,9 +8,8 @@
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type { Agent, PreStepDecision } from '@deepseek-ai/dsh-agent'
-import type {} from '@deepseek-ai/dsh-system-prompt'
 import { defineTool } from '@deepseek-ai/dsh-tools'
-import { PERSONA_ORDER, PERSONA_SECTION } from '@deepseek-ai/dsh-system-prompt'
+import { PERSONA_SECTION } from '@deepseek-ai/dsh-system-prompt'
 import { createUserMessage } from '@deepseek-ai/dsh-llm/message'
 
 // ── plugin identity ─────────────────────────────────────────────────────────
@@ -244,14 +243,14 @@ export function apply(ctx: Context, config: Config = {}): void {
 
   ctx.effect(() => ctx.systemPrompt.section({
     name: PERSONA_SECTION,
-    order: PERSONA_ORDER,
+    order: ctx.systemPrompt.getSectionOrder('DEPLOYMENT_PERSONA'),
     text: personaText(resolved),
   }), 'roleplay-master: persona')
 
   if (resolved.suppressHarnessIdentity) {
     ctx.effect(() => ctx.systemPrompt.section({
       name: 'harness:identity',
-      order: -100,
+      order: ctx.systemPrompt.getSectionOrder('HARNESS_IDENTITY'),
       text: '',
     }), 'roleplay-master: suppress identity')
   }
