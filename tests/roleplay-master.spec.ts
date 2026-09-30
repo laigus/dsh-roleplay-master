@@ -53,6 +53,18 @@ describe('roleplay-master composition', () => {
     expect(ctx.tools.get('punish_servant', key)).toBeUndefined()
   })
 
+  it('names a message source kind that each host generation admits', () => {
+    // 0.2 起会话格式 v4 要求产生方自有的 kind，并明确拒绝通用的 'plugin'
+    const producer = RoleplayMaster.contextInjectionSource(true)
+    expect(producer.kind).toBe('roleplay-master')
+    expect(typeof producer.kind).toBe('string')
+    expect(producer.kind).not.toBe('plugin')
+
+    // 0.1.x 的 v3 校验只认包装形态
+    const legacy = RoleplayMaster.contextInjectionSource(false)
+    expect(legacy).toMatchObject({ kind: 'plugin', plugin: 'dsh-roleplay-master' })
+  })
+
   it('keeps host-only client publication free of server registrations', async () => {
     const { ctx, key, scope } = await harness({ clientOnly: true })
 

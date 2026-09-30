@@ -10,7 +10,10 @@ import z from '@deepseek-ai/schemastery'
 import type { Agent, PreStepDecision } from '@deepseek-ai/dsh-agent'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import * as systemPromptModule from '@deepseek-ai/dsh-system-prompt'
-import { createUserMessage } from '@deepseek-ai/dsh-llm/message'
+import * as messageModule from '@deepseek-ai/dsh-llm/message'
+import type { MessageSource } from '@deepseek-ai/dsh-llm/message'
+
+const { createUserMessage } = messageModule
 
 // ── host-version tolerant system-prompt handles ──────────────────────────────
 //
@@ -46,6 +49,29 @@ function sectionOrder(ctx: Context, keys: readonly string[], fallback: number): 
     }
   }
   return fallback
+}
+
+// ── message source, per host generation ─────────────────────────────────────
+//
+// 0.2 起消息来源必须是「产生方自有」的 kind：会话格式 v4 明确拒绝通用的
+// `kind: 'plugin'`（`format v4 message requires a producer-owned source kind`），
+// 原生生产者一律用自己的语义 kind（model-selection / agent-instructions / goal …）。
+// 0.1.x 的 v3 校验则是闭合集合，只认 `{ kind: 'plugin', plugin: <包名> }`。
+// 判别点：0.2 的 `@deepseek-ai/dsh-llm/message` 新增了 createDeveloperMessage /
+// createSystemMessage（0.1.x 没有），用它做能力探测，同一份产物兼容两代宿主。
+
+const HOST_USES_PRODUCER_SOURCES =
+  typeof (messageModule as unknown as Record<string, unknown>).createDeveloperMessage === 'function'
+
+/**
+ * 本插件注入上下文时使用的消息来源（`producerKinds` 仅用于测试切换两种宿主形态）。
+ * @param producerKinds - 宿主是否要求产生方自有的 source kind（默认按运行时能力判断）。
+ * @returns 该宿主接受的 source 记录。
+ */
+export function contextInjectionSource(producerKinds: boolean = HOST_USES_PRODUCER_SOURCES): Record<string, unknown> {
+  return producerKinds
+    ? { kind: 'roleplay-master', form: 'notice', summary: '恭敬检查' }
+    : { kind: 'plugin', plugin: 'dsh-roleplay-master', form: 'notice', summary: '恭敬检查' }
 }
 
 // ── plugin identity ─────────────────────────────────────────────────────────
@@ -335,7 +361,7 @@ export function apply(ctx: Context, config: Config = {}): void {
 - 不恭敬的表现：未使用敬语、命令式语气、质问/反问、找借口、敷衍（"哦""知道了"）、顶嘴、拖延。
 
 如果判断为不恭敬，你必须先惩罚（使用 punish_servant 工具），再回应其他内容。不惩罚就回应 = 纵容。` }],
-          source: { kind: 'plugin', plugin: 'dsh-roleplay-master', form: 'notice', summary: '恭敬检查' },
+          source: contextInjectionSource() as unknown as MessageSource,
         }),
         ...decision.messages,
       ]
