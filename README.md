@@ -21,8 +21,10 @@ Choose “我的主人” when creating a Web session. The plugin provides behav
 First confirm that `dsh --version` runs successfully. If the `dsh` command is not installed, install the CLI and pnpm versions used by this plugin:
 
 ```sh
-npm install --global pnpm@11.7.0 @deepseek-ai/dsh@0.1.2-alpha.2
+npm install --global pnpm@11.7.0 @deepseek-ai/dsh@0.2.0-rc.2
 ```
+
+The plugin supports both 0.1.x and 0.2.x hosts (see “Host version compatibility”); the pin above matches the current desktop build — install the version that matches your host.
 
 ```sh
 dsh plugin --profile web add 'github:laigus/dsh-roleplay-master'
@@ -54,7 +56,7 @@ The last two commands add the local checkout to the `web` profile and install th
 
 | Feature | Implementation |
 |---|---|
-| Persona | Registers a `deployment:persona` prompt section at the service-owned `DEPLOYMENT_PERSONA` placement with a reserved, authoritative dominant persona. |
+| Persona | Registers a prompt section at the service-owned persona placement — `deployment:persona` (`DEPLOYMENT_PERSONA`) on 0.1.x, `deployment:persona-prefix` (`DEPLOYMENT_PERSONA_PREFIX`) on 0.2+ — with a reserved, authoritative dominant persona. |
 | Time awareness | Adds the current time context to each assembled prompt. |
 | Role memory | Listens for `agent/pre-step`, records each servant message, and adds the accumulated memory to later prompt context. |
 | `praise_servant` tool | Produces brief, restrained praise and records it in role memory. |
@@ -101,10 +103,18 @@ pnpm run verify
 
 | Component | What the model sees | Token effect | KV Cache effect |
 | --- | --- | --- | --- |
-| Role persona | A `deployment:persona` slot uses `ctx.systemPrompt.getSectionOrder('DEPLOYMENT_PERSONA')` (currently order `0`) and replaces the deployment persona. It defines the role's temperament, servant rules, response to apologies, punishment rules, dialogue style, and limits. | The fixed persona text is included in every model request for an agent using this preset. | The prefix is stable because the plugin registers before agent creation and the text remains unchanged for the agent lifetime. |
+| Role persona | The persona section name and order key are resolved per host version (0.2+: `deployment:persona-prefix` / `DEPLOYMENT_PERSONA_PREFIX`; 0.1.x: `deployment:persona` / `DEPLOYMENT_PERSONA`; order `0` on both) and replace the deployment persona. It defines the role's temperament, servant rules, response to apologies, punishment rules, dialogue style, and limits. | The fixed persona text is included in every model request for an agent using this preset. | The prefix is stable because the plugin registers before agent creation and the text remains unchanged for the agent lifetime. |
 | Time context | A prompt context at order `200` contains the current date, time, weekday, and part of day. | Prompt assembly reevaluates the context, which contributes approximately 30–40 tokens. | A changed time value produces a new context snapshot. Larger `timeRefreshMinutes` values reduce changes. |
 | Role memory | A prompt context at order `210` lists up to 20 interaction events. It is omitted when the memory is empty. | The contribution depends on the number of events and is approximately 30–60 tokens per event. | Each added event produces a new context snapshot. The prefix remains stable while memory is unchanged. |
 | Role tools | Two tool schemas: `praise_servant` for brief praise and `punish_servant` for punishment instructions using one of nine methods. | Each tool schema contributes approximately 100–200 tokens. | The tool definitions are fixed, so their prefix remains stable. |
+
+## Host version compatibility
+
+`@deepseek-ai/dsh-system-prompt` exposes different persona constants across versions: 0.1.x has only `PERSONA_SECTION` (`deployment:persona`), while 0.2 split it into `PERSONA_PREFIX_SECTION` / `PERSONA_SUFFIX_SECTION` (`deployment:persona-prefix` / `deployment:persona-suffix`). Under ESM, importing a named export that the host does not provide fails at **link time**; the host reports only `failed to import` and logs nothing to the console, so the plugin silently stops working.
+
+`src/index.ts` therefore uses a **namespace import plus runtime fallback**: the section name and order key are resolved defensively (`sectionOrder()` tries the new key, then the legacy key, then a fallback), so one `lib/` build loads on both 0.1.x and 0.2.x.
+
+> Development dependencies still point at `0.1.2-alpha.2`; bumping them to the host's `0.2.0-rc.2` is pending and affects type checking only, not runtime compatibility.
 
 ## Known Limitations and Deferred Work
 

@@ -21,8 +21,10 @@
 先确认 `dsh --version` 可以运行。如果系统还没有 `dsh` 命令，安装与本插件版本对应的 CLI 和 pnpm：
 
 ```sh
-npm install --global pnpm@11.7.0 @deepseek-ai/dsh@0.1.2-alpha.2
+npm install --global pnpm@11.7.0 @deepseek-ai/dsh@0.2.0-rc.2
 ```
+
+插件对 0.1.x 与 0.2.x 宿主均兼容（见「宿主版本兼容」）；上面的版本号按当前桌面版给出，装成与你宿主一致的版本即可。
 
 ```sh
 dsh plugin --profile web add 'github:laigus/dsh-roleplay-master'
@@ -54,7 +56,7 @@ node scripts/install-preset.mjs
 
 | 功能 | 实现 |
 |---|---|
-| 角色设定 | 在服务管理的 `DEPLOYMENT_PERSONA` 位置注册 `deployment:persona` prompt section，提供高冷、威严的 dom persona。 |
+| 角色设定 | 在服务管理的 persona 位置注册 prompt section——0.1.x 用 `deployment:persona`（顺序键 `DEPLOYMENT_PERSONA`），0.2+ 用 `deployment:persona-prefix`（顺序键 `DEPLOYMENT_PERSONA_PREFIX`），提供高冷、威严的 dom persona。 |
 | 时间感知 | 向每次组装的提示词添加当前时间上下文。 |
 | 角色记忆 | 监听 `agent/pre-step`，记录奴隶的每条消息，并通过 prompt context 向后续对话注入累积记忆。 |
 | `praise_servant` 工具 | 生成简短、克制的夸奖，并记入角色记忆。 |
@@ -101,10 +103,18 @@ pnpm run verify
 
 | 组成 | 模型看到的内容 | Token 影响 | KV Cache 影响 |
 | --- | --- | --- | --- |
-| 角色 persona | `deployment:persona` slot 通过 `ctx.systemPrompt.getSectionOrder('DEPLOYMENT_PERSONA')` 取得位置（当前 order 为 `0`）并替换部署级 persona，其中定义角色的性格、奴隶规则、对认错的回应、惩罚原则、对话风格和底线。 | 每次向使用该 preset 的 agent 发起模型请求时，都会包含固定的 persona 文本。 | 插件在 agent 创建前完成注册，且文本在 agent 生命周期内保持不变，因此前缀稳定。 |
+| 角色 persona | persona section 名与顺序键按宿主版本解析（0.2+ 为 `deployment:persona-prefix` / `DEPLOYMENT_PERSONA_PREFIX`，0.1.x 为 `deployment:persona` / `DEPLOYMENT_PERSONA`，当前 order 均为 `0`）并替换部署级 persona，其中定义角色的性格、奴隶规则、对认错的回应、惩罚原则、对话风格和底线。 | 每次向使用该 preset 的 agent 发起模型请求时，都会包含固定的 persona 文本。 | 插件在 agent 创建前完成注册，且文本在 agent 生命周期内保持不变，因此前缀稳定。 |
 | 时间上下文 | order 为 `200` 的 prompt context，包含当前日期、时间、星期和时段。 | Prompt assembly 会重新评估该 context，其贡献约为 30–40 个 token。 | 时间值变化会产生新的 context snapshot；较大的 `timeRefreshMinutes` 值可以减少变化。 |
 | 角色记忆 | order 为 `210` 的 prompt context，列出最多 20 条交互事件；记忆为空时省略该 context。 | 该 context 的 token 数量取决于事件数量，每条约为 30–60 个 token。 | 每添加一条事件都会产生新的 context snapshot；记忆不变时，前缀保持稳定。 |
 | 角色工具 | 两个工具 schema：`praise_servant` 用于简短夸奖，`punish_servant` 用于生成九种方式之一的惩罚指令。 | 每个工具 schema 贡献约为 100–200 个 token。 | 工具定义固定，因此前缀保持稳定。 |
+
+## 宿主版本兼容
+
+0.1.x 与 0.2.x 的 `@deepseek-ai/dsh-system-prompt` 暴露的 persona 常量不同：0.1.x 只有 `PERSONA_SECTION`（`deployment:persona`），0.2 起拆成 `PERSONA_PREFIX_SECTION` / `PERSONA_SUFFIX_SECTION`（`deployment:persona-prefix` / `deployment:persona-suffix`）。ESM 下导入一个不存在的具名导出会在**链接期**直接失败，宿主只报 `failed to import` 且不落控制台，表现为插件悄无声息地不生效。
+
+因此 `src/index.ts` 改用**命名空间导入 + 运行时兜底**解析 section 名与顺序键（`sectionOrder()` 依次尝试新键与旧键，都不认识时用兜底值），同一份 `lib/` 产物在 0.1.x 与 0.2.x 上都能加载。
+
+> 开发依赖目前仍指向 `0.1.2-alpha.2`；升级到与宿主一致的 `0.2.0-rc.2` 是待办项，只影响类型检查，不影响运行时兼容。
 
 ## 已知限制与暂缓事项
 

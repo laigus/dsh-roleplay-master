@@ -9,8 +9,44 @@ import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type { Agent, PreStepDecision } from '@deepseek-ai/dsh-agent'
 import { defineTool } from '@deepseek-ai/dsh-tools'
-import { PERSONA_SECTION } from '@deepseek-ai/dsh-system-prompt'
+import * as systemPromptModule from '@deepseek-ai/dsh-system-prompt'
 import { createUserMessage } from '@deepseek-ai/dsh-llm/message'
+
+// ── host-version tolerant system-prompt handles ──────────────────────────────
+//
+// 0.1.x 只有一个 `PERSONA_SECTION`（"deployment:persona"，顺序键 DEPLOYMENT_PERSONA）；
+// 0.2 起拆成 prefix/suffix 两个 section（"deployment:persona-prefix" /
+// "deployment:persona-suffix"，顺序键 DEPLOYMENT_PERSONA_PREFIX / _SUFFIX）。
+// 具名导入在缺少该导出的一侧会直接链接失败（loader 报 failed to import），
+// 所以这里用命名空间导入 + 运行时兜底，同一份产物在新旧宿主上都能加载。
+
+const SYSTEM_PROMPT_MODULE = systemPromptModule as unknown as Record<string, unknown>
+
+/** 当前宿主的 persona section 名（0.2 优先 prefix，0.1 回落旧常量）。 */
+const PERSONA_SECTION = typeof SYSTEM_PROMPT_MODULE.PERSONA_PREFIX_SECTION === 'string'
+  ? SYSTEM_PROMPT_MODULE.PERSONA_PREFIX_SECTION
+  : (typeof SYSTEM_PROMPT_MODULE.PERSONA_SECTION === 'string'
+    ? SYSTEM_PROMPT_MODULE.PERSONA_SECTION
+    : 'deployment:persona-prefix')
+
+/** persona section 的顺序键候选（新键在前）。 */
+const PERSONA_ORDER_KEYS = ['DEPLOYMENT_PERSONA_PREFIX', 'DEPLOYMENT_PERSONA'] as const
+
+/**
+ * 解析 section 顺序：宿主不认识某个键时换下一个候选，都不认识则用兜底值，
+ * 避免旧宿主抛错、新宿主拿到 undefined。
+ */
+function sectionOrder(ctx: Context, keys: readonly string[], fallback: number): number {
+  for (const key of keys) {
+    try {
+      const order = (ctx.systemPrompt as unknown as { getSectionOrder(key: string): number }).getSectionOrder(key)
+      if (Number.isFinite(order)) return order
+    } catch {
+      // 该宿主没有这个顺序键，继续尝试下一个候选
+    }
+  }
+  return fallback
+}
 
 // ── plugin identity ─────────────────────────────────────────────────────────
 
@@ -243,14 +279,14 @@ export function apply(ctx: Context, config: Config = {}): void {
 
   ctx.effect(() => ctx.systemPrompt.section({
     name: PERSONA_SECTION,
-    order: ctx.systemPrompt.getSectionOrder('DEPLOYMENT_PERSONA'),
+    order: sectionOrder(ctx, PERSONA_ORDER_KEYS, 0),
     text: personaText(resolved),
   }), 'roleplay-master: persona')
 
   if (resolved.suppressHarnessIdentity) {
     ctx.effect(() => ctx.systemPrompt.section({
       name: 'harness:identity',
-      order: ctx.systemPrompt.getSectionOrder('HARNESS_IDENTITY'),
+      order: sectionOrder(ctx, ['HARNESS_IDENTITY'], -1000),
       text: '',
     }), 'roleplay-master: suppress identity')
   }
