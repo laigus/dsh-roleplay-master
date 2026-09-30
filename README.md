@@ -12,9 +12,16 @@ This is an **out-of-tree plugin repository**, separate from the upstream DeepSee
 
 - `presets/my-master/preset.yml` supplies the “我的主人” display name and description.
 - `presets/my-master/agent.cordis.yml` mounts this plugin and lists the filesystem, PowerShell, Web, and job tools available to the role.
-- The preset installer copies that directory to `$DSH_HOME/.agent-presets/my-master`; when `DSH_HOME` is unset, the default is `$HOME/.dsh/.agent-presets/my-master`.
+- The preset installer writes whichever form the host reads:
 
-Choose “我的主人” when creating a Web session. The plugin provides behavior; the preset chooses its configuration and companion tools.
+  | Host | Preset form | Install location |
+  |---|---|---|
+  | 0.1.x | directory (`preset.yml` + `agent.cordis.yml`) | `$DSH_HOME/.agent-presets/my-master` |
+  | 0.2+ | cordis patch row: `@deepseek-ai/dsh-agent-preset`, whose `config.plugins` holds the same rows as `agent.cordis.yml` | the target profile's `cordis.patch.yml` (when run inside the profile directory), else `$DSH_HOME/cordis.patch.yml` |
+
+  The installer auto-detects the host form; when detection cannot decide (for example the desktop host's packages live inside `app.asar`, which an ordinary process cannot resolve), pass `--preset-format rows` (0.2+) or `--preset-format dir` (0.1.x). `DSH_HOME` is shared by every profile, so a 0.2 install deliberately leaves the 0.1.x directory in place — it is inert on a 0.2 host.
+
+Choose “我的主人” when creating a Web session (restart DSH once after installing on 0.2). The plugin provides behavior; the preset chooses its configuration and companion tools.
 
 ## Install from GitHub
 
@@ -115,6 +122,8 @@ pnpm run verify
 `src/index.ts` therefore uses a **namespace import plus runtime fallback**: the section name and order key are resolved defensively (`sectionOrder()` tries the new key, then the legacy key, then a fallback), so one `lib/` build loads on both 0.1.x and 0.2.x.
 
 > Development dependencies still point at `0.1.2-alpha.2`; bumping them to the host's `0.2.0-rc.2` is pending and affects type checking only, not runtime compatibility.
+
+Agent presets changed shape as well: 0.1.x reads a `$DSH_HOME/.agent-presets/<name>/{preset.yml,agent.cordis.yml}` directory, while 0.2+ declares each preset as a cordis patch row (`@deepseek-ai/dsh-agent-preset`, with the former `agent.cordis.yml` rows under `config.plugins`; the registry config now holds only `default`/`selectedDefault`, with no `roots`). The installer therefore has to pick the form the host reads — see “Plugin and Agent preset”.
 
 ## Known Limitations and Deferred Work
 

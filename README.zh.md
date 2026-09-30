@@ -12,9 +12,16 @@
 
 - `presets/my-master/preset.yml` 决定界面中显示的名称“我的主人”和说明。
 - `presets/my-master/agent.cordis.yml` 启用本插件，并列出该角色可以使用的文件、PowerShell、网页和任务工具。
-- 预设安装器会把这个目录复制到 `$DSH_HOME/.agent-presets/my-master`；未设置 `DSH_HOME` 时，默认位置是 `$HOME/.dsh/.agent-presets/my-master`。
+- 预设安装器按宿主版本落地这两种形态：
 
-启动 Web 界面后，新建会话时选择“我的主人”即可。插件负责能力，预设负责选择哪些能力以及使用什么配置。
+  | 宿主 | 预设形态 | 安装位置 |
+  |---|---|---|
+  | 0.1.x | 目录（`preset.yml` + `agent.cordis.yml`） | `$DSH_HOME/.agent-presets/my-master` |
+  | 0.2+ | cordis patch 行：`@deepseek-ai/dsh-agent-preset`，其 `config.plugins` 就是上面的 `agent.cordis.yml` | 目标 profile 的 `cordis.patch.yml`（在 profile 目录下执行时），否则 `$DSH_HOME/cordis.patch.yml` |
+
+  安装器默认自动检测宿主形态；识别不出来时（例如桌面版的宿主包在 `app.asar` 内、普通进程解析不到）显式指定 `--preset-format rows`（0.2+）或 `--preset-format dir`（0.1.x）。`DSH_HOME` 在各 profile 间共享，所以 0.2 安装**不会**删除 0.1.x 目录——后者在 0.2 宿主上是惰性的。
+
+启动 Web 界面后，新建会话时选择“我的主人”即可（0.2 装完重启一次 DSH）。插件负责能力，预设负责选择哪些能力以及使用什么配置。
 
 ## 从 GitHub 安装
 
@@ -115,6 +122,8 @@ pnpm run verify
 因此 `src/index.ts` 改用**命名空间导入 + 运行时兜底**解析 section 名与顺序键（`sectionOrder()` 依次尝试新键与旧键，都不认识时用兜底值），同一份 `lib/` 产物在 0.1.x 与 0.2.x 上都能加载。
 
 > 开发依赖目前仍指向 `0.1.2-alpha.2`；升级到与宿主一致的 `0.2.0-rc.2` 是待办项，只影响类型检查，不影响运行时兼容。
+
+Agent 预设的形态也在 0.2 变了：0.1.x 读 `$DSH_HOME/.agent-presets/<name>/{preset.yml,agent.cordis.yml}` 目录，0.2+ 改为 cordis patch 行（`@deepseek-ai/dsh-agent-preset`，`config.plugins` 承载原 `agent.cordis.yml` 的行；注册表配置只剩 `default`/`selectedDefault`，已无 `roots`），因此安装器需要按宿主选择落地形态（见「插件与Agent预设」）。
 
 ## 已知限制与暂缓事项
 
